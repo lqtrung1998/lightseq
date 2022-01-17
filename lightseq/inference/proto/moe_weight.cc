@@ -1016,6 +1016,48 @@ void MoeWeight<OpType_>::hdf5_parse_dec_wei(hid_t hdf5_file) {
 }
 
 /**
+Load the weights of gate into GPU memory.
+*/
+template <OperationType OpType_>
+void MoeWeight<OpType_>::hdf5_parse_gate_wei(hid_t hdf5_file, bool enc_or_dec) {
+  int n_moe_layer = enc_or_dec? _n_moelayer_encoder : _n_moelayer_decoder;
+  int expert_num = enc_or_dec? _expert_num_encoder : _expert_num_decoder;
+  size_t value_size = _hidden_size * expert_num * n_moe_layer;
+  std::vector<bool> &moe_layers = enc_or_dec? _moe_layers_encoder : _moe_layers_decoder;
+  std::string prefix = enc_or_dec? "encoder_stack/" : "decoder_stack/";
+
+  std::vector<int> offset;
+  std::vector<float> value(value_size);
+
+  int idx = 0;
+  for (int layer_id = 0; layer_id < (int)moe_layers.size(); ++layer_id){
+    if (moe_layers[layer_id]){
+      offset.push_back(idx);
+      read_hdf5_dataset_data(
+        hdf5_file, prefix + std::to_string(layer_id) + "/gate_kernel", H5T_NATIVE_FLOAT,
+        value.data() + idx, [=](int size) { return size != _hidden_size * expert_num; },
+        "Wrong gate_kernel_size !");
+      idx += _hidden_size * expert_num;
+    }
+  }
+  std::vector<_DataType> raw_value;
+  raw_value.reserve(value.size());
+  for (float e : value) raw_value.push_back(float2required(e));
+  
+  if (enc_or_dec){
+    _d_enc_gate_wei = raw_value;
+    for (int e : offset)
+      _p_d_enc_gate_wei.push_back(thrust::raw_pointer_cast(_d_enc_gate_wei.data()) + e);
+    std::cout << "Finish loading enc_gate_wei from host to device" << std::endl;
+  } else{
+    _d_dec_gate_wei = raw_value;
+    for (int e : offset)
+      _p_d_dec_gate_wei.push_back(thrust::raw_pointer_cast(_d_dec_gate_wei.data()) + e);
+    std::cout << "Finish loading dec_gate_wei from host to device" << std::endl;
+  }
+}
+
+/**
 Load the proto file into CPU memory and parse it.
 */
 template <OperationType OpType_>
@@ -1082,8 +1124,10 @@ std::string MoeWeight<OpType_>::initializing(std::string weight_path,
     hdf5_parse_emb_wei(hdf5_file, "trg");
     if (!only_decoder) {
       hdf5_parse_enc_wei(hdf5_file);
+      hdf5_parse_gate_wei(hdf5_file, true);
     }
     hdf5_parse_dec_wei(hdf5_file);
+    hdf5_parse_dec_gate_wei(hdf5_file, false);
     H5Fclose(hdf5_file);
 
     std::cout << "Finish loading all weight from host to device" << std::endl;

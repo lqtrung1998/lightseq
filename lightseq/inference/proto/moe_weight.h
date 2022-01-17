@@ -42,12 +42,15 @@ class MoeWeight {
   void hdf5_parse_emb_wei(hid_t hdf5_file, std::string source);
   void hdf5_parse_enc_wei(hid_t hdf5_file);
   void hdf5_parse_dec_wei(hid_t hdf5_file);
+  void hdf5_parse_gate_wei(hid_t hdf5_file, bool enc_or_dec);
 
   // store the weights pointer
   std::vector<const _DataType *> _p_d_src_emb_wei;  // size: 4
   std::vector<const _DataType *> _p_d_trg_emb_wei;  // size: 4
   std::vector<const _DataType *> _p_d_enc_wei;      // size: 12 * enc_layer_num
   std::vector<const _DataType *> _p_d_dec_wei;      // size: 18 * dec_layer_num
+  std::vector<const _DataType *> _p_d_enc_gate_wei; // size: _n_moelayer_encoder
+  std::vector<const _DataType *> _p_d_dec_gate_wei; // size: _n_moelayer_decoder
 
   // store the weights on gpu memo
   thrust::device_vector<_DataType> _d_src_emb_wei;
@@ -56,6 +59,8 @@ class MoeWeight {
   thrust::device_vector<_DataType> _d_dec_wei;
   thrust::device_vector<_DataType> _d_src_lang_emb;
   thrust::device_vector<_DataType> _d_trg_lang_emb;
+  thrust::device_vector<_DataType> _d_enc_gate_wei;
+  thrust::device_vector<_DataType> _d_dec_gate_wei;
 
  public:
   std::string initializing(std::string proto_path, bool only_decoder = false);
@@ -88,6 +93,16 @@ class MoeWeight {
     // ffn_norm_scale, ffn_norm_bias, ffn_first_kernel, ffn_first_bias,
     // ffn_second_kernel, ffn_second_bias, } * decoder_layer_num
     return _p_d_dec_wei;
+  }
+
+  const std::vector<const _DataType *> &get_enc_gate_wei() const {
+    // {token_emb, pos_emb, norm_scale, norm_bias}
+    return _p_d_enc_gate_wei;
+  }
+
+  const std::vector<const _DataType *> &get_dec_gate_wei() const {
+    // {token_emb, pos_emb, norm_scale, norm_bias}
+    return _p_d_dec_gate_wei;
   }
 
   int _hidden_size;
@@ -154,6 +169,12 @@ class MoeWeight {
     std::cout << "sampling method: " << _sampling_method << std::endl;
     std::cout << "topk: " << _topk << std::endl;
     std::cout << "topp: " << _topp << std::endl;
+    std::cout << "encoder expert num: " << _expert_num_encoder << std::endl;
+    std::cout << "decoder expert num: " << _expert_num_decoder << std::endl;
+    std::cout << "encoder moe topk:" << _moe_topk_encoder << std::endl;
+    std::cout << "decoder moe topk:" << _moe_topk_decoder << std::endl;
+    std::cout << "encoder moe layers:" << _n_moelayer_encoder << std::endl;
+    std::cout << "decoder moe layers:" << _n_moelayer_decoder << std::endl;
   }
 };
 
