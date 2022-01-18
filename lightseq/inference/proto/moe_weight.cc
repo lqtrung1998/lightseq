@@ -1127,7 +1127,7 @@ std::string MoeWeight<OpType_>::initializing(std::string weight_path,
       hdf5_parse_gate_wei(hdf5_file, true);
     }
     hdf5_parse_dec_wei(hdf5_file);
-    hdf5_parse_dec_gate_wei(hdf5_file, false);
+    hdf5_parse_gate_wei(hdf5_file, false);
     H5Fclose(hdf5_file);
 
     std::cout << "Finish loading all weight from host to device" << std::endl;

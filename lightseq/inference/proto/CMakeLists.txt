@@ -35,3 +35,13 @@ target_include_directories(transformer_weight
                            PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_include_directories(transformer_weight
                            PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
+
+add_library(
+  moe_weight STATIC moe_weight.cc ${TRANSFORMER_PROTO_SRC}
+                            ${TRANSFORMER_PROTO_HEADER})
+target_link_libraries(moe_weight PUBLIC utils ${Protobuf_LIBRARIES}
+                                                ${HDF5_LIBRARIES})
+target_include_directories(moe_weight
+                           PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_include_directories(moe_weight
+                           PUBLIC ${CMAKE_CURRENT_BINARY_DIR})

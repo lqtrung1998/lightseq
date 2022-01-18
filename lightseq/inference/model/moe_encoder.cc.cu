@@ -1,4 +1,4 @@
-#include "encoder.h"
+#include "moe_encoder.h"
 #include "../kernels/transformerKernels.h"
 #include "../kernels/embKernels.h"
 

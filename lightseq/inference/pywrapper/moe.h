@@ -1,8 +1,8 @@
 
 
 #include "model_base.h"
-#include "../model/decoder.h"
-#include "../model/encoder.h"
+#include "../model/moe_decoder.h"
+#include "../model/moe_encoder.h"
 #include "../proto/moe_weight.h"
 #include "../tools/util.h"
 
