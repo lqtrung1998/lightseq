@@ -12,7 +12,7 @@ namespace lightseq {
 namespace cuda {
 
 template <OperationType OpType_>
-Decoder<OpType_>::Decoder(int max_batch_size, const int* p_d_padding_mask,
+MoeDecoder<OpType_>::MoeDecoder(int max_batch_size, const int* p_d_padding_mask,
                           const _DataType* p_d_encoder_output, int* p_d_result,
                           MoeWeight<OpType_>& tw, cudaStream_t stream,
                           cublasHandle_t hd, bool output_topk,
@@ -61,7 +61,7 @@ Compute GPU memory size needed by moe decoder,
   to see how these memory is used, checkout init_buffer() for detail
 */
 template <OperationType OpType_>
-long Decoder<OpType_>::compute_buffer_bytesize() {
+long MoeDecoder<OpType_>::compute_buffer_bytesize() {
   long cache_bytesize = 4 * _tw._n_dec_layer * _layer_size_self_k +
                         2 * _tw._n_dec_layer * _layer_size_encdec_k +
                         _max_batch_size * _tw._beam_size * _tw._hidden_size;
@@ -91,7 +91,7 @@ These buffer are used during custom cuda kernel function,
   find the corresponding function to see how these buffer are used
 */
 template <OperationType OpType_>
-void Decoder<OpType_>::init_buffer(void* pbuf) {
+void MoeDecoder<OpType_>::init_buffer(void* pbuf) {
   std::cout << "decoder buffer init start" << std::endl;
   _DataType* curp = reinterpret_cast<_DataType*>(pbuf);
 
@@ -208,7 +208,7 @@ void Decoder<OpType_>::init_buffer(void* pbuf) {
 Some requirements needed by custom cuda kernel function
 */
 template <OperationType OpType_>
-std::string Decoder<OpType_>::check() {
+std::string MoeDecoder<OpType_>::check() {
   // if (_max_thread_per_block < _tw._hidden_size) {
   //   return "violate hidden_size <= max_thread_per_block";
   // }
@@ -216,6 +216,7 @@ std::string Decoder<OpType_>::check() {
     return "violate inner_size % 2 = 0";
   }
   if (_tw._dim_per_head & 1) {
+    std::cout<< "decoder_dim_per_head:" << _tw._dim_per_head <<std::endl;
     return "violate dim_per_head % 2 = 0";
   }
   if (_tw._multilg_type == 0 && _p_d_trg_emb_wei.size() != 7) {
@@ -258,7 +259,7 @@ std::string Decoder<OpType_>::check() {
 Decoder inference
 */
 template <OperationType OpType_>
-void Decoder<OpType_>::run_one_infer(int batch_size, int batch_seq_len) {
+void MoeDecoder<OpType_>::run_one_infer(int batch_size, int batch_seq_len) {
   if (batch_size > _max_batch_size) {
     throw std::runtime_error("batch size of input greater than max_batch_size");
   }
@@ -331,7 +332,7 @@ void Decoder<OpType_>::run_one_infer(int batch_size, int batch_seq_len) {
 Project encoder output
 */
 template <OperationType OpType_>
-void Decoder<OpType_>::project_encoder_output() {
+void MoeDecoder<OpType_>::project_encoder_output() {
   int kv_dim = _tw._hidden_size * 2 * _tw._n_dec_layer;
 #ifdef DEBUG_RESULT
   CHECK_GPU_ERROR(cudaStreamSynchronize(_stream));
@@ -367,7 +368,7 @@ void Decoder<OpType_>::project_encoder_output() {
 Decode one step
 */
 template <OperationType OpType_>
-bool Decoder<OpType_>::run_step() {
+bool MoeDecoder<OpType_>::run_step() {
   embedding();
   decoder_stack();
   /* --- Project hidden states to vocab logits--- */
@@ -408,7 +409,7 @@ bool Decoder<OpType_>::run_step() {
 Decode embedding
 */
 template <OperationType OpType_>
-void Decoder<OpType_>::embedding() {
+void MoeDecoder<OpType_>::embedding() {
   // _p_d_trg_emb_wei: {token_emb, position_emb, norm_scale, norm_bias,
   // enc_out_kernel_kv, enc_out_bias_kv, logit_bias}
   launch_dec_emb<_DataType>(_p_d_trg_emb_wei[0], _p_d_trg_emb_wei[1],
@@ -434,7 +435,7 @@ Decoder feedforward, composed by self_atten,
   enc-dec-atten, ffn
 */
 template <OperationType OpType_>
-void Decoder<OpType_>::decoder_stack() {
+void MoeDecoder<OpType_>::decoder_stack() {
   // _p_d_dec_wei = {self_norm_scale, self_norm_bias,
   // self_qkv_kernel, self_qkv_bias, self_output_kernel, self_output_bias
   // encdec_norm_scale, encdec_norm_bias,
@@ -462,7 +463,7 @@ void Decoder<OpType_>::decoder_stack() {
 Decoder self attention
 */
 template <OperationType OpType_>
-void Decoder<OpType_>::self_attention() {
+void MoeDecoder<OpType_>::self_attention() {
   /* ---step 0. layer_norm, add output_bias to "query"--- */
   ker_norm_layer_resual_launcher<_DataType>(
       _step_token_num, _tw._hidden_size, _stream, _p_d_cur_step_query,
@@ -574,7 +575,7 @@ void Decoder<OpType_>::self_attention() {
 Encode-Decoder attention
 */
 template <OperationType OpType_>
-void Decoder<OpType_>::encdec_attention() {
+void MoeDecoder<OpType_>::encdec_attention() {
   /* ---step 0. layer_norm, add output_bias to "query"--- */
   ker_norm_layer_resual_launcher<_DataType>(
       _step_token_num, _tw._hidden_size, _stream, _p_d_cur_step_query,
@@ -639,7 +640,7 @@ void Decoder<OpType_>::encdec_attention() {
 }
 
 template <OperationType OpType_>
-void Decoder<OpType_>::ffn_add_norm() {
+void MoeDecoder<OpType_>::ffn_add_norm() {
   /* ---step 0. layer_norm, add output_bias to "query"--- */
   ker_norm_layer_resual_launcher<_DataType>(
       _step_token_num, _tw._hidden_size, _stream, _p_d_cur_step_query,
@@ -682,7 +683,7 @@ void Decoder<OpType_>::ffn_add_norm() {
 }
 
 template <OperationType OpType_>
-bool Decoder<OpType_>::sample() {
+bool MoeDecoder<OpType_>::sample() {
   CHECK_GPU_ERROR(
       cudaMemsetAsync(_p_d_sample_unfinished, 0, sizeof(int), _stream));
   /* --- Sample new tokens from logits --- */
@@ -716,7 +717,7 @@ bool Decoder<OpType_>::sample() {
 }
 
 template <OperationType OpType_>
-bool Decoder<OpType_>::beam_search() {
+bool MoeDecoder<OpType_>::beam_search() {
   /*
     step 1. logits bias and softmax,
       select rough topk candidate for every batch item,
@@ -818,7 +819,7 @@ Select rough topk candidate for every batch item.
 Record the candidate's beam_id, vocab_id and probability
 */
 template <OperationType OpType_>
-void Decoder<OpType_>::update_new_seq_probs() {
+void MoeDecoder<OpType_>::update_new_seq_probs() {
   CHECK_GPU_ERROR(cudaMemsetAsync(_p_d_can_num, 0, sizeof(int), _stream));
 
   select_beam_rough_topk_launcher(
@@ -834,7 +835,7 @@ void Decoder<OpType_>::update_new_seq_probs() {
 }
 
 template <OperationType OpType_>
-bool Decoder<OpType_>::topk_greedy_search() {
+bool MoeDecoder<OpType_>::topk_greedy_search() {
   _tw._diverse_lambda = 0;
   if (_cur_step == 0) {
     return beam_search();
@@ -868,8 +869,8 @@ bool Decoder<OpType_>::topk_greedy_search() {
   return _h_unfinished == 1 ? false : true;
 }
 
-template class Decoder<OperationType::FP16>;
-template class Decoder<OperationType::FP32>;
+template class MoeDecoder<OperationType::FP16>;
+template class MoeDecoder<OperationType::FP32>;
 
 }  // namespace cuda
 }  // namespace lightseq

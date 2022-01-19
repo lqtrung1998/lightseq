@@ -50,7 +50,7 @@ Moe::Moe(const std::string weight_path,
   CHECK_GPU_ERROR(
       cudaMalloc(&d_trg_lang_id_, _max_batch_size * sizeof(int32_t)));
 
-  encoder_ = std::make_shared<Encoder<moe_optytpe>>(
+  encoder_ = std::make_shared<MoeEncoder<moe_optytpe>>(
       _max_batch_size, d_input_, d_padding_mask_, d_encoder_output_, tw_,
       stream_, hd_, d_src_lang_id_);
   res = encoder_->check();
@@ -58,7 +58,7 @@ Moe::Moe(const std::string weight_path,
     throw std::runtime_error(res);
   }
 
-  decoder_ = std::make_shared<Decoder<moe_optytpe>>(
+  decoder_ = std::make_shared<MoeDecoder<moe_optytpe>>(
       _max_batch_size, d_padding_mask_, d_encoder_output_, d_output_, tw_,
       stream_, hd_, true, d_trg_lang_id_);
   res = decoder_->check();

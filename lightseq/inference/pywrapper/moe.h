@@ -19,8 +19,8 @@ namespace cuda {
 class Moe : public LSModel {
  private:
   typedef OperationTypeTraits<moe_optytpe> optraits;
-  std::shared_ptr<Encoder<moe_optytpe>> encoder_;
-  std::shared_ptr<Decoder<moe_optytpe>> decoder_;
+  std::shared_ptr<MoeEncoder<moe_optytpe>> encoder_;
+  std::shared_ptr<MoeDecoder<moe_optytpe>> decoder_;
 
   optraits::DataType *d_encoder_output_;
   int *d_input_;

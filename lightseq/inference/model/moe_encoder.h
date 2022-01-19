@@ -20,7 +20,7 @@ namespace lightseq {
 namespace cuda {
 
 template <OperationType OpType_>
-class Encoder {
+class MoeEncoder {
  private:
   typedef OperationTypeTraits<OpType_> _optraits;
   typedef typename _optraits::DataType _DataType;
@@ -70,7 +70,7 @@ class Encoder {
   int _weight_offset;
 
  public:
-  Encoder(int max_batch_size, int *p_d_token_id, int *p_d_padding_mask,
+  MoeEncoder(int max_batch_size, int *p_d_token_id, int *p_d_padding_mask,
           _DataType *p_d_output, const MoeWeight<OpType_> &tw,
           cudaStream_t stream, cublasHandle_t hd,
           const int *p_d_lang_id = nullptr);

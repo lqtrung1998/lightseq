@@ -26,7 +26,7 @@ namespace lightseq {
 namespace cuda {
 
 template <OperationType OpType_>
-class Decoder {
+class MoeDecoder {
  private:
   typedef OperationTypeTraits<OpType_> _optraits;
   typedef typename _optraits::DataType _DataType;
@@ -126,7 +126,7 @@ class Decoder {
                                                   "topk_greedy"};
 
  public:
-  Decoder(int max_batch_size, const int* p_d_padding_mask,
+  MoeDecoder(int max_batch_size, const int* p_d_padding_mask,
           const _DataType* p_d_encoder_output, int* p_d_result,
           MoeWeight<OpType_>& tw, cudaStream_t stream,
           cublasHandle_t hd, bool output_topk = false,
